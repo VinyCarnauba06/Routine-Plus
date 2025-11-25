@@ -82,16 +82,14 @@ app.get('/api/weather/forecast', async (req, res) => {
     }
 });
 
-// ======================================================
-//  📌 CRUD DE TAREFAS
-// ======================================================
+
 app.get('/api/tasks', async (req, res) => {
     try {
         if (!db) throw new Error("Database not initialized");
 
         const tasks = await db
             .collection("tasks")
-            .find({ userId: req.user.uid, isCompleted: false }) // ✅ CORREÇÃO: Filtra tarefas pendentes
+            .find({ userId: req.user.uid, isCompleted: false }) 
             .toArray();
 
         res.json(tasks);
