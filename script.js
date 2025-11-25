@@ -1,4 +1,3 @@
-// Theme toggle (dark / light) - persists in localStorage
 const themeToggleBtn = document.getElementById('toggle-theme');
 function applyTheme() {
   const t = localStorage.getItem('routine_theme') || 'light';
@@ -16,7 +15,7 @@ if (themeToggleBtn) {
 applyTheme();
 
 
-// script.js - Routine+ frontend (local development)
+
 const BASE_URL = 'http://localhost:3000';
 let MOCK_ID_TOKEN = "TEST_TOKEN_XYZ_MOCK_USER_123";
 
@@ -70,23 +69,23 @@ async function loadWeather(city = currentCity) {
     }
 }
 
-// Tasks
-let tasks = [];
-let currentFilter = 'all'; // NOVO: Para rastrear o filtro atual
 
-async function fetchAllTasks(){ // Função renomeada
+let tasks = [];
+let currentFilter = 'all'; 
+
+async function fetchAllTasks(){ 
     const list = document.getElementById('task-list');
     list.innerHTML = '<li>Carregando tarefas...</li>';
     try {
-        // O backend agora só retorna tarefas PENDENTES.
+        
         const res = await fetch(`${BASE_URL}/api/tasks`, { headers: getAuthHeaders() });
         if (res.status === 401) {
              list.innerHTML = '<li>Erro: Não autorizado. Simule o Login.</li>';
              return [];
         }
-        // Armazena todas as tarefas pendentes na variável global 'tasks'
+        
         tasks = await res.json(); 
-        renderTasks(currentFilter); // Renderiza com o filtro atual
+        renderTasks(currentFilter); 
         return tasks;
     } catch(err) {
         console.error("Erro ao carregar tarefas:", err);
@@ -95,7 +94,7 @@ async function fetchAllTasks(){ // Função renomeada
     }
 }
 
-function renderTasks(filter = 'all'){ // NOVO: Função para renderizar com filtro
+function renderTasks(filter = 'all'){ 
     currentFilter = filter;
     const list = document.getElementById('task-list');
     
@@ -105,14 +104,14 @@ function renderTasks(filter = 'all'){ // NOVO: Função para renderizar com filt
         return task.category === filter;
     });
 
-    list.innerHTML = ''; // Limpa a lista
+    list.innerHTML = ''; 
     
     if (filteredTasks.length === 0) {
         list.innerHTML = `<li style="opacity:.8">Nenhuma tarefa na categoria ${filter}.</li>`;
         return;
     }
     
-    // 2. Renderiza as tarefas filtradas
+    
     filteredTasks.forEach((task) => {
         const li = document.createElement('li');
         const dueDate = task.date ? new Date(task.date).toLocaleString() : 'Sem data';
@@ -149,7 +148,7 @@ document.getElementById('task-form').addEventListener('submit', async function(e
         });
         if (!res.ok) throw new Error('Falha ao adicionar tarefa.');
         this.reset();
-        await fetchAllTasks(); // Atualizado
+        await fetchAllTasks(); 
     } catch (err) {
         console.error("Erro ao adicionar tarefa:", err);
         alert('Não foi possível adicionar a tarefa. Verifique o backend.');
@@ -173,7 +172,7 @@ async function completeTask(taskId){
             body: JSON.stringify({ isCompleted: true })
         });
         if (!res.ok) throw new Error('Falha ao completar tarefa.');
-        await fetchAllTasks(); // Atualizado
+        await fetchAllTasks(); 
     } catch (err) {
         console.error(err);
         alert('Erro ao marcar como concluída.');
@@ -188,7 +187,7 @@ async function deleteTask(taskId){
             headers: getAuthHeaders()
         });
         if (res.status === 204) {
-            await fetchAllTasks(); // Atualizado
+            await fetchAllTasks(); 
         } else {
             throw new Error('Falha ao excluir tarefa.');
         }
@@ -203,7 +202,7 @@ async function checkWeatherAlert(task) {
         const res = await fetch(`${BASE_URL}/api/weather/forecast?city=${encodeURIComponent(currentCity)}`);
         if (!res.ok) return;
         const data = await res.json();
-        // OneCall-style response: check hourly[0] or daily
+        
         const main = (data.hourly?.[0]?.weather?.[0]?.main || data.current?.weather?.[0]?.main || '').toLowerCase();
         if (main.includes('rain') || main.includes('storm') || main.includes('drizzle')) {
             const taskDate = task.date ? new Date(task.date) : null;
@@ -216,31 +215,31 @@ async function checkWeatherAlert(task) {
 
 function escapeHtml(str){ return String(str).replace(/[&<>"']/g, function(s){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]); }); }
 
-// NOVO: Lógica do Sidebar
+
 const filterNav = document.getElementById('filter-nav');
 if (filterNav) {
     filterNav.addEventListener('click', (e) => {
         const btn = e.target.closest('.filter-btn');
         if (!btn) return;
 
-        // 1. Remove 'active' de todos os botões e adiciona ao clicado
+        
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        // 2. Filtra e renderiza
+        
         const filterValue = btn.getAttribute('data-filter');
         renderTasks(filterValue);
     });
 }
 
 
-// inicializa UI
-fetchAllTasks(); // Atualizado
+
+fetchAllTasks(); 
 loadWeather();
 
 
 
-// Simulate registering an FCM token for this user (for demo/dev)
+
 const registerTokenBtn = document.getElementById('register-token-btn');
 if (registerTokenBtn) {
   registerTokenBtn.addEventListener('click', async () => {
