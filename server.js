@@ -62,6 +62,7 @@ function fakeAuth(req, res, next) {
 }
 
 app.use('/api/tasks', fakeAuth);
+app.use('/api/history', fakeAuth); 
 
 
 app.get('/api/weather', async (req, res) => {
