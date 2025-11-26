@@ -15,7 +15,7 @@ if (themeToggleBtn) {
 applyTheme();
 
 
-// CORREÇÃO FINAL: Usando a URL pública do Render para acesso por qualquer pessoa
+
 const BASE_URL = 'https://routine-plus.onrender.com';
 let MOCK_ID_TOKEN = "TEST_TOKEN_XYZ_MOCK_USER_123";
 
@@ -49,7 +49,7 @@ if(loadWeatherBtn){
     });
 }
 
-// Carrega o clima atual no Pop-up
+
 async function loadWeather(city = currentCity) {
     const weatherBox = document.getElementById('weather-info');
     weatherBox.textContent = 'Carregando clima...';
@@ -70,11 +70,32 @@ async function loadWeather(city = currentCity) {
     }
 }
 
-// Tasks
+
 let tasks = [];
 let currentFilter = 'all'; 
 
-async function fetchAllTasks(){ 
+
+async function fetchHistoryTasks(){
+    const list = document.getElementById('task-list');
+    list.innerHTML = '<li>Carregando histórico...</li>';
+    try {
+        const res = await fetch(`${BASE_URL}/api/history`, { headers: getAuthHeaders() });
+        if (res.status === 401) {
+             list.innerHTML = '<li>Erro: Não autorizado. Simule o Login.</li>';
+             return [];
+        }
+        tasks = await res.json(); 
+        renderTasks('history');
+        return tasks;
+    } catch(err) {
+        console.error("Erro ao carregar histórico:", err);
+        list.innerHTML = '<li>Erro de conexão com o servidor de histórico.</li>';
+        return [];
+    }
+}
+
+
+async function fetchActiveTasks(filter = 'all'){ 
     const list = document.getElementById('task-list');
     list.innerHTML = '<li>Carregando tarefas...</li>';
     try {
@@ -86,7 +107,7 @@ async function fetchAllTasks(){
         }
         
         tasks = await res.json(); 
-        renderTasks(currentFilter); 
+        renderTasks(filter); 
         return tasks;
     } catch(err) {
         console.error("Erro ao carregar tarefas:", err);
@@ -95,12 +116,55 @@ async function fetchAllTasks(){
     }
 }
 
-// Lógica de renderização com formato 24h e chamada de forecast
+
+
 function renderTasks(filter = 'all'){ 
     currentFilter = filter;
     const list = document.getElementById('task-list');
+
     
-    // 1. Aplica o filtro
+    if (filter === 'history') {
+        
+        document.getElementById('task-list-section').querySelector('h2').textContent = 'Tarefas Recentes (10d)';
+
+        list.innerHTML = ''; 
+        
+        if (tasks.length === 0) {
+            list.innerHTML = `<li style="opacity:.8">Nenhuma tarefa recente nos últimos 10 dias.</li>`;
+            return;
+        }
+
+        tasks.forEach((item) => {
+            const li = document.createElement('li');
+            
+            
+            const actionDate = new Date(item.actionAt).toLocaleString('pt-BR', { 
+                year: 'numeric', month: 'numeric', day: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+                hour12: false
+            });
+            
+            
+            const actionColor = (item.action === 'Concluída') ? 'var(--accent)' : '#e03131';
+            const actionIcon = (item.action === 'Concluída') ? '✅' : '🗑️';
+            const actionOpacity = (item.action === 'Concluída') ? '1' : '0.8';
+
+            li.setAttribute('style', `border-left: 6px solid ${actionColor}; opacity: ${actionOpacity};`);
+            li.innerHTML = `
+                <strong>${escapeHtml(item.taskTitle)}</strong>
+                <div class="task-meta">
+                    ${actionIcon} ${item.action} em: ${actionDate}
+                </div>
+            `;
+            list.appendChild(li);
+        });
+        return; 
+    }
+
+
+    document.getElementById('task-list-section').querySelector('h2').textContent = 'Minhas Tarefas';
+
+    
     const filteredTasks = tasks.filter(task => {
         if (filter === 'all') return true;
         return task.category === filter;
@@ -117,12 +181,12 @@ function renderTasks(filter = 'all'){
     filteredTasks.forEach((task) => {
         const li = document.createElement('li');
         
-        // NOVO: Formato 24h explícito
+        
         const dueDate = task.date 
             ? new Date(task.date).toLocaleString('pt-BR', { 
                 year: 'numeric', month: 'numeric', day: 'numeric',
                 hour: '2-digit', minute: '2-digit',
-                hour12: false // Força o formato 24 horas
+                hour12: false
             }) 
             : 'Sem data';
             
@@ -140,7 +204,7 @@ function renderTasks(filter = 'all'){
         `;
         list.appendChild(li);
 
-        // NOVO: Dispara a busca do forecast e atualiza o span
+        
         if (task.category === 'Ao ar livre') {
             checkWeatherForecast(task).then(forecastText => {
                 const weatherSpan = document.getElementById(`weather-for-${task._id}`);
@@ -169,7 +233,7 @@ document.getElementById('task-form').addEventListener('submit', async function(e
         });
         if (!res.ok) throw new Error('Falha ao adicionar tarefa.');
         this.reset();
-        await fetchAllTasks(); 
+        await fetchActiveTasks('all'); 
     } catch (err) {
         console.error("Erro ao adicionar tarefa:", err);
         alert('Não foi possível adicionar a tarefa. Verifique o backend.');
@@ -181,7 +245,7 @@ document.getElementById('task-list').addEventListener('click', async function(e)
     if (!btn) return;
     const action = btn.getAttribute('data-action');
     const taskId = btn.getAttribute('data-id');
-    if (action === 'complete') completeTask(taskId);
+    if (action === 'complete') await completeTask(taskId);
     if (action === 'delete') await deleteTask(taskId);
 });
 
@@ -193,7 +257,13 @@ async function completeTask(taskId){
             body: JSON.stringify({ isCompleted: true })
         });
         if (!res.ok) throw new Error('Falha ao completar tarefa.');
-        await fetchAllTasks(); 
+        
+        
+        if (currentFilter === 'history') {
+            await fetchHistoryTasks();
+        } else {
+            await fetchActiveTasks(currentFilter); 
+        }
     } catch (err) {
         console.error(err);
         alert('Erro ao marcar como concluída.');
@@ -208,7 +278,12 @@ async function deleteTask(taskId){
             headers: getAuthHeaders()
         });
         if (res.status === 204) {
-            await fetchAllTasks(); 
+            
+             if (currentFilter === 'history') {
+                await fetchHistoryTasks();
+            } else {
+                await fetchActiveTasks(currentFilter); 
+            }
         } else {
             throw new Error('Falha ao excluir tarefa.');
         }
@@ -218,7 +293,7 @@ async function deleteTask(taskId){
     }
 }
 
-// NOVO: Busca e retorna a previsão mais próxima do horário da tarefa
+
 async function checkWeatherForecast(task) {
     if (task.category !== 'Ao ar livre' || !task.date) {
         return ''; 
@@ -231,7 +306,7 @@ async function checkWeatherForecast(task) {
         
         const taskTime = new Date(task.date).getTime();
         
-        // Encontra o ponto de previsão mais próximo (OpenWeather fornece a cada 3h)
+        
         const closestForecast = data.list.reduce((closest, current) => {
             const currentDiff = Math.abs(new Date(current.dt_txt).getTime() - taskTime);
             if (currentDiff < closest.diff) {
@@ -266,16 +341,20 @@ if (filterNav) {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        
         const filterValue = btn.getAttribute('data-filter');
-        renderTasks(filterValue);
+        
+        
+        if (filterValue === 'history') {
+             fetchHistoryTasks(); 
+        } else {
+             fetchActiveTasks(filterValue); 
+        }
     });
 }
 
 
-
-fetchAllTasks(); 
-loadWeather(); // Carrega o clima na inicialização (será mostrado no pop-up)
+fetchActiveTasks('all'); 
+loadWeather(); 
 
 
 
@@ -300,21 +379,21 @@ if (registerTokenBtn) {
 }
 
 
-// Lógica para Pop-up do Clima e Roll-up
+
 document.addEventListener('DOMContentLoaded', () => {
     const toggleWeatherPopupBtn = document.getElementById('toggle-weather-popup');
     const weatherPopupContainer = document.getElementById('weather-popup-container');
     const weatherContent = document.getElementById('weather-content');
 
-    // 1. Alternar a visibilidade do Pop-up (Botão "Ver Clima")
+    
     if (toggleWeatherPopupBtn && weatherPopupContainer) {
         toggleWeatherPopupBtn.addEventListener('click', (event) => {
             event.stopPropagation();
 
-            // Alterna a classe que esconde/mostra o pop-up
+            
             weatherPopupContainer.classList.toggle('hidden-popup');
 
-            // Se o pop-up foi aberto, garante que o conteúdo esteja expandido e atualiza o clima
+            
             if (!weatherPopupContainer.classList.contains('hidden-popup')) {
                 weatherContent.classList.remove('collapsed');
                 loadWeather(currentCity); 
@@ -322,27 +401,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. Alternar o Roll-up do conteúdo do Pop-up (Clicando no título "Clima de Hoje")
+    
     if (weatherPopupContainer && weatherContent) {
         const weatherTitle = weatherPopupContainer.querySelector('h2');
         if (weatherTitle) {
-            weatherTitle.style.cursor = 'pointer'; // Torna o título clicável visualmente
+            weatherTitle.style.cursor = 'pointer'; 
             
             weatherTitle.addEventListener('click', () => {
-                // Alterna a classe que causa o efeito de recolher/expandir (roll-up)
+                
                 weatherContent.classList.toggle('collapsed');
             });
         }
     }
 
 
-    // Opcional: Fechar o pop-up se clicar fora dele
+    
     document.body.addEventListener('click', (event) => {
         if (weatherPopupContainer && toggleWeatherPopupBtn) {
             const isClickInsidePopup = weatherPopupContainer.contains(event.target);
             const isClickOnToggleButton = toggleWeatherPopupBtn.contains(event.target);
 
-            // Verifica se o clique não foi dentro do pop-up E não foi no botão de toggle
+            
             if (!isClickInsidePopup && !isClickOnToggleButton && !weatherPopupContainer.classList.contains('hidden-popup')) {
                 weatherPopupContainer.classList.add('hidden-popup');
             }

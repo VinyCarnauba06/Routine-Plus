@@ -3,13 +3,12 @@ require('dotenv').config();
 const express = require('express');
 const fetch = require('node-fetch');
 const cors = require('cors');
-const { MongoClient, ObjectId } = require('mongodb'); //
+const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.OPENWEATHER_API_KEY;
 const MONGO_URI = process.env.MONGO_URI;
-// As linhas duplicadas que causavam o erro foram removidas aqui.
 
 app.use(express.json());
 app.use(cors({
@@ -17,7 +16,7 @@ app.use(cors({
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     preflightContinue: false,
     optionsSuccessStatus: 204
-})); //
+}));
 
 let db;
 let client;
@@ -34,6 +33,14 @@ async function connectDB() {
         await client.connect();
 
         db = client.db("routineplusdb");
+
+        
+        const historyCollection = db.collection("history");
+        await historyCollection.createIndex(
+            { createdAt: 1 }, 
+            { expireAfterSeconds: 864000 }
+        );
+        console.log("✅ TTL Index (10 dias) criado na coleção 'history'.");
 
         console.log("✅🔥 CONECTADO ao MongoDB com sucesso!");
     } catch (err) {
@@ -89,6 +96,24 @@ app.get('/api/weather/forecast', async (req, res) => {
 });
 
 
+
+app.get('/api/history', async (req, res) => {
+    try {
+        if (!db) throw new Error("Database not initialized");
+
+        const history = await db
+            .collection("history")
+            .find({ userId: req.user.uid })
+            .sort({ createdAt: -1 }) 
+            .toArray();
+
+        res.json(history);
+    } catch (err) {
+        res.status(500).json({ error: "DB error", detail: err.message });
+    }
+});
+
+
 app.get('/api/tasks', async (req, res) => {
     try {
         if (!db) throw new Error("Database not initialized");
@@ -138,6 +163,7 @@ app.patch('/api/tasks/:id', async (req, res) => {
     try {
         if (!db) throw new Error("Database not initialized");
 
+        
         const result = await db.collection("tasks").updateOne(
             { _id: new ObjectId(id), userId: req.user.uid },
             { $set: { isCompleted: true } }
@@ -145,6 +171,20 @@ app.patch('/api/tasks/:id', async (req, res) => {
 
         if (result.matchedCount === 0)
             return res.status(404).json({ error: "task not found" });
+
+        
+        const taskCompleted = await db.collection("tasks").findOne({ _id: new ObjectId(id) });
+        
+        if (taskCompleted) {
+            await db.collection("history").insertOne({
+                taskId: new ObjectId(id),
+                taskTitle: taskCompleted.title,
+                userId: req.user.uid,
+                action: "Concluída", 
+                actionAt: new Date(), 
+                createdAt: new Date(), 
+            });
+        }
 
         res.json({ message: "completed" });
 
@@ -159,6 +199,9 @@ app.delete('/api/tasks/:id', async (req, res) => {
     try {
         if (!db) throw new Error("Database not initialized");
 
+        
+        const taskToDelete = await db.collection("tasks").findOne({ _id: new ObjectId(id) });
+
         const result = await db.collection("tasks").deleteOne({
             _id: new ObjectId(id),
             userId: req.user.uid
@@ -167,6 +210,18 @@ app.delete('/api/tasks/:id', async (req, res) => {
         if (result.deletedCount === 0)
             return res.status(404).json({ error: "task not found" });
 
+        
+        if (taskToDelete) {
+             await db.collection("history").insertOne({
+                taskId: new ObjectId(id),
+                taskTitle: taskToDelete.title,
+                userId: req.user.uid,
+                action: "Excluída", 
+                actionAt: new Date(), 
+                createdAt: new Date(), 
+            });
+        }
+        
         res.status(204).send();
 
     } catch (err) {
