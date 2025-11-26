@@ -11,9 +11,21 @@
     <h1>Routine+</h1>
     <p>Organize suas tarefas com alertas climáticos inteligentes</p>
     <div style="text-align:center; margin-top:8px;">
-    <button id="toggle-theme" class="small-btn" style="display:inline-block;">Alternar Dark Mode</button>
-  </div>
-</header>
+      <button id="toggle-theme" class="small-btn" style="display:inline-block;">Alternar Dark Mode</button>
+            <button id="toggle-weather-popup" class="small-btn" style="display:inline-block;">Ver Clima</button>
+    </div>
+  </header>
+
+    <section id="weather-popup-container" class="weather-popup hidden-popup"> 
+    <h2>Clima de Hoje</h2>
+        <div id="weather-content" class="roll-up-content">
+      <div id="weather-controls">
+        <input type="text" id="city-input" placeholder="Digite sua cidade (ex: São Paulo)" value="Maceio" />
+        <button id="load-weather-btn">Atualizar Clima</button>
+      </div>
+      <div id="weather-info">Carregando clima...</div>
+    </div>
+  </section>
 
   <div class="main-container">
 
@@ -29,35 +41,28 @@
     </aside>
 
     <main id="main-content">
-      <section id="weather">
-        <h2>Clima de Hoje</h2>
-        <div id="weather-controls">
-          <input type="text" id="city-input" placeholder="Digite sua cidade (ex: São Paulo)" value="Maceio" />
-          <button id="load-weather-btn">Atualizar Clima</button>
-        </div>
-        <div id="weather-info">Carregando clima...</div>
-      </section>
-
-      <section id="task-form-section">
-        <h2>Criar Tarefa</h2>
-        <form id="task-form">
-          <input type="text" id="title" placeholder="Título da tarefa" required />
-          <input type="datetime-local" id="date" />
-          <select id="category">
-            <option value="Casa">Casa</option>
-            <option value="Trabalho">Trabalho</option>
-            <option value="Estudos">Estudos</option>
-            <option value="Ao ar livre">Ao ar livre</option>
-          </select>
-          <textarea id="description" placeholder="Descrição (opcional)"></textarea>
-          <button type="submit">Adicionar Tarefa</button>
-        </form>
-      </section>
-
-      <section id="task-list-section">
-        <h2>Minhas Tarefas</h2>
-        <ul id="task-list"></ul>
-      </section>
+      <div id="task-columns"> 
+        <section id="task-list-section">
+          <h2>Minhas Tarefas</h2>
+          <ul id="task-list"></ul>
+        </section>
+  
+        <section id="task-form-section">
+          <h2>Criar Tarefa</h2>
+          <form id="task-form">
+            <input type="text" id="title" placeholder="Título da tarefa" required />
+            <input type="datetime-local" id="date" />
+            <select id="category">
+              <option value="Casa">Casa</option>
+              <option value="Trabalho">Trabalho</option>
+              <option value="Estudos">Estudos</option>
+              <option value="Ao ar livre">Ao ar livre</option>
+            </select>
+            <textarea id="description" placeholder="Descrição (opcional)"></textarea>
+            <button type="submit">Adicionar Tarefa</button>
+          </form>
+        </section>
+      </div>
     </main>
 
   </div>

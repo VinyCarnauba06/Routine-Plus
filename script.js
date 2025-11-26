@@ -258,3 +258,54 @@ if (registerTokenBtn) {
     }
   });
 }
+
+
+// NOVO: Lógica para Pop-up do Clima e Roll-up
+document.addEventListener('DOMContentLoaded', () => {
+    const toggleWeatherPopupBtn = document.getElementById('toggle-weather-popup');
+    const weatherPopupContainer = document.getElementById('weather-popup-container');
+    const weatherContent = document.getElementById('weather-content');
+
+    // 1. Alternar a visibilidade do Pop-up (Botão "Ver Clima")
+    if (toggleWeatherPopupBtn && weatherPopupContainer) {
+        toggleWeatherPopupBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+
+            // Alterna a classe que esconde/mostra o pop-up
+            weatherPopupContainer.classList.toggle('hidden-popup');
+
+            // Se o pop-up foi aberto, garante que o conteúdo esteja expandido e atualiza o clima
+            if (!weatherPopupContainer.classList.contains('hidden-popup')) {
+                weatherContent.classList.remove('collapsed');
+                loadWeather(currentCity); 
+            }
+        });
+    }
+
+    // 2. Alternar o Roll-up do conteúdo do Pop-up (Clicando no título "Clima de Hoje")
+    if (weatherPopupContainer && weatherContent) {
+        const weatherTitle = weatherPopupContainer.querySelector('h2');
+        if (weatherTitle) {
+            weatherTitle.style.cursor = 'pointer'; // Torna o título clicável visualmente
+            
+            weatherTitle.addEventListener('click', () => {
+                // Alterna a classe que causa o efeito de recolher/expandir (roll-up)
+                weatherContent.classList.toggle('collapsed');
+            });
+        }
+    }
+
+
+    // Opcional: Fechar o pop-up se clicar fora dele
+    document.body.addEventListener('click', (event) => {
+        if (weatherPopupContainer && toggleWeatherPopupBtn) {
+            const isClickInsidePopup = weatherPopupContainer.contains(event.target);
+            const isClickOnToggleButton = toggleWeatherPopupBtn.contains(event.target);
+
+            // Verifica se o clique não foi dentro do pop-up E não foi no botão de toggle
+            if (!isClickInsidePopup && !isClickOnToggleButton && !weatherPopupContainer.classList.contains('hidden-popup')) {
+                weatherPopupContainer.classList.add('hidden-popup');
+            }
+        }
+    });
+});
