@@ -16,7 +16,7 @@ applyTheme();
 
 
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'https://routine-plus.onrender.com';
 let MOCK_ID_TOKEN = "TEST_TOKEN_XYZ_MOCK_USER_123";
 
 function getAuthHeaders() {
@@ -69,7 +69,7 @@ async function loadWeather(city = currentCity) {
     }
 }
 
-
+// Tasks
 let tasks = [];
 let currentFilter = 'all'; 
 
