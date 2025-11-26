@@ -15,7 +15,7 @@ if (themeToggleBtn) {
 applyTheme();
 
 
-
+// CORREÇÃO FINAL: Usando a URL pública do Render para acesso por qualquer pessoa
 const BASE_URL = 'https://routine-plus.onrender.com';
 let MOCK_ID_TOKEN = "TEST_TOKEN_XYZ_MOCK_USER_123";
 
@@ -49,6 +49,7 @@ if(loadWeatherBtn){
     });
 }
 
+// Carrega o clima atual no Pop-up
 async function loadWeather(city = currentCity) {
     const weatherBox = document.getElementById('weather-info');
     weatherBox.textContent = 'Carregando clima...';
@@ -94,6 +95,7 @@ async function fetchAllTasks(){
     }
 }
 
+// Lógica de renderização com formato 24h e chamada de forecast
 function renderTasks(filter = 'all'){ 
     currentFilter = filter;
     const list = document.getElementById('task-list');
@@ -114,10 +116,22 @@ function renderTasks(filter = 'all'){
     
     filteredTasks.forEach((task) => {
         const li = document.createElement('li');
-        const dueDate = task.date ? new Date(task.date).toLocaleString() : 'Sem data';
+        
+        // NOVO: Formato 24h explícito
+        const dueDate = task.date 
+            ? new Date(task.date).toLocaleString('pt-BR', { 
+                year: 'numeric', month: 'numeric', day: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+                hour12: false // Força o formato 24 horas
+            }) 
+            : 'Sem data';
+            
         li.innerHTML = `
             <strong>${escapeHtml(task.title)}</strong>
-            <div class="task-meta">Categoria: ${escapeHtml(task.category)} · Data: ${dueDate}</div>
+            <div class="task-meta">
+                Categoria: ${escapeHtml(task.category)} · Data: ${dueDate} 
+                <span id="weather-for-${task._id}"></span> 
+            </div>
             <div class="task-desc">${escapeHtml(task.description || '')}</div>
             <div class="task-actions">
                 <button class="small-btn" data-action="complete" data-id="${task._id}">Concluir</button>
@@ -125,8 +139,15 @@ function renderTasks(filter = 'all'){
             </div>
         `;
         list.appendChild(li);
+
+        // NOVO: Dispara a busca do forecast e atualiza o span
         if (task.category === 'Ao ar livre') {
-            checkWeatherAlert(task);
+            checkWeatherForecast(task).then(forecastText => {
+                const weatherSpan = document.getElementById(`weather-for-${task._id}`);
+                if (weatherSpan) {
+                    weatherSpan.textContent = forecastText;
+                }
+            });
         }
     });
 }
@@ -197,20 +218,39 @@ async function deleteTask(taskId){
     }
 }
 
-async function checkWeatherAlert(task) {
+// NOVO: Busca e retorna a previsão mais próxima do horário da tarefa
+async function checkWeatherForecast(task) {
+    if (task.category !== 'Ao ar livre' || !task.date) {
+        return ''; 
+    }
+    
     try {
         const res = await fetch(`${BASE_URL}/api/weather/forecast?city=${encodeURIComponent(currentCity)}`);
-        if (!res.ok) return;
+        if (!res.ok) return '';
         const data = await res.json();
         
-        const main = (data.hourly?.[0]?.weather?.[0]?.main || data.current?.weather?.[0]?.main || '').toLowerCase();
-        if (main.includes('rain') || main.includes('storm') || main.includes('drizzle')) {
-            const taskDate = task.date ? new Date(task.date) : null;
-            if (!taskDate || (Math.abs(taskDate - new Date()) < 1000 * 60 * 60 * 24)) {
-                alert(`⚠️ Atenção! Pode chover na hora da tarefa "${task.title}" em ${data.name}!`);
+        const taskTime = new Date(task.date).getTime();
+        
+        // Encontra o ponto de previsão mais próximo (OpenWeather fornece a cada 3h)
+        const closestForecast = data.list.reduce((closest, current) => {
+            const currentDiff = Math.abs(new Date(current.dt_txt).getTime() - taskTime);
+            if (currentDiff < closest.diff) {
+                return { diff: currentDiff, forecast: current };
             }
+            return closest;
+        }, { diff: Infinity, forecast: null });
+
+        if (closestForecast.forecast) {
+            const main = closestForecast.forecast.weather[0].description;
+            const temp = Math.round(closestForecast.forecast.main.temp);
+            return ` | Previsão: ${main} (${temp}°C)`;
         }
-    } catch(err){ console.error(err); }
+        return '';
+
+    } catch(err){ 
+        console.error("Erro ao buscar forecast:", err); 
+        return '';
+    }
 }
 
 function escapeHtml(str){ return String(str).replace(/[&<>"']/g, function(s){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]); }); }
@@ -235,7 +275,7 @@ if (filterNav) {
 
 
 fetchAllTasks(); 
-loadWeather();
+loadWeather(); // Carrega o clima na inicialização (será mostrado no pop-up)
 
 
 
@@ -260,7 +300,7 @@ if (registerTokenBtn) {
 }
 
 
-// NOVO: Lógica para Pop-up do Clima e Roll-up
+// Lógica para Pop-up do Clima e Roll-up
 document.addEventListener('DOMContentLoaded', () => {
     const toggleWeatherPopupBtn = document.getElementById('toggle-weather-popup');
     const weatherPopupContainer = document.getElementById('weather-popup-container');
